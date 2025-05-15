@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moto Dogge Race</title>
+    <title>3D Road Rage Motorbike</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400;700&display=swap');
@@ -1117,9 +1117,53 @@
             roadLineEl.style.transform = `translateX(-50%) translateZ(${initialZ}px)`;
             
             roadElement.appendChild(roadLineEl);
+            
+            // Limit the number of road lines if we have too many (performance optimization)
+            if (roadLines.length > 60) {
+                for (let i = 0; i < 10; i++) {
+                    if (roadLines.length > 0) {
+                        const oldLine = roadLines.shift();
+                        if (oldLine.element && oldLine.element.parentNode) {
+                            roadElement.removeChild(oldLine.element);
+                        }
+                    }
+                }
+            }
+            
             roadLines.push({ element: roadLineEl, y: yPos, baseScale: 1 });
         }
         
+        // Watch for game hang and auto-recover
+        let lastRenderTimestamp = 0;
+        let hangDetectionInterval = null;
+        
+        function startHangDetection() {
+            lastRenderTimestamp = performance.now();
+            
+            // Clear any existing interval
+            if (hangDetectionInterval) {
+                clearInterval(hangDetectionInterval);
+            }
+            
+            // Check every 2 seconds if the game might be hanging
+            hangDetectionInterval = setInterval(() => {
+                const currentTime = performance.now();
+                const timeSinceLastRender = currentTime - lastRenderTimestamp;
+                
+                // If it's been more than 3 seconds since the last render, the game might be hanging
+                if (gameStarted && !gamePaused && timeSinceLastRender > 3000) {
+                    console.warn("Possible game hang detected! Attempting recovery...");
+                    recoverFromHang();
+                    lastRenderTimestamp = currentTime;
+                }
+            }, 2000);
+        }
+        
+        function updateRenderTimestamp() {
+            lastRenderTimestamp = performance.now();
+        }
+        
+        // Start hang detection when the game starts
         function startGame() {
             gameStarted = true;
             gamePaused = false;
@@ -1148,6 +1192,7 @@
             
             // Start game loop
             lastLogicUpdateTime = performance.now();
+            startHangDetection();
             gameLoop();
         }
         
@@ -1231,6 +1276,19 @@
         }
         
         function createOtherBike() {
+            // Limit the number of bikes if we have too many (performance optimization)
+            if (otherBikes.length > 8) {
+                // Remove the furthest bike
+                for (let i = 0; i < 2; i++) {
+                    if (otherBikes.length > 0) {
+                        const oldBike = otherBikes.shift();
+                        if (oldBike.element && oldBike.element.parentNode) {
+                            roadElement.removeChild(oldBike.element);
+                        }
+                    }
+                }
+            }
+            
             const bikeElement = document.createElement('div');
             bikeElement.className = 'other-bike';
             
@@ -1265,6 +1323,19 @@
         }
         
         function createCoin() {
+            // Limit the number of coins if we have too many (performance optimization)
+            if (coins.length > 10) {
+                // Remove the furthest coins
+                for (let i = 0; i < 3; i++) {
+                    if (coins.length > 0) {
+                        const oldCoin = coins.shift();
+                        if (oldCoin.element && oldCoin.element.parentNode) {
+                            roadElement.removeChild(oldCoin.element);
+                        }
+                    }
+                }
+            }
+            
             const coinElement = document.createElement('div');
             coinElement.className = 'coin';
             
@@ -1285,40 +1356,48 @@
         }
         
         function updatePlayerPosition() {
-            let horizontalSpeedFactor = playerSpeed / 150 + 0.5;
-            player.tiltAngle = 0;
+            try {
+                let horizontalSpeedFactor = playerSpeed / 150 + 0.5;
+                player.tiltAngle = 0;
 
-            if (keys['arrowleft'] || keys['a']) {
-                player.x -= player.moveSpeed * horizontalSpeedFactor;
-                player.tiltAngle = -15;
+                if (keys['arrowleft'] || keys['a']) {
+                    player.x -= player.moveSpeed * horizontalSpeedFactor;
+                    player.tiltAngle = -15;
+                }
+                if (keys['arrowright'] || keys['d']) {
+                    player.x += player.moveSpeed * horizontalSpeedFactor;
+                    player.tiltAngle = 15;
+                }
+                
+                if (keys['arrowup'] || keys['w']) {
+                    playerSpeed = Math.min(playerSpeed + acceleration, maxSpeed);
+                }
+                if (keys['arrowdown'] || keys['s']) {
+                    playerSpeed = Math.max(playerSpeed - deceleration * 2, minSpeed);
+                }
+                
+                if (!(keys['arrowup'] || keys['w'])) {
+                    playerSpeed = Math.max(playerSpeed - deceleration * 0.5, minSpeed);
+                }
+                
+                // Set engine idle volume based on speed
+                engineIdleSound.volume = 0.3 + (playerSpeed / maxSpeed) * 0.5;
+                
+                // Update speed display and needle
+                speedDisplay.innerHTML = Math.round(playerSpeed) + ' <span id="speed-unit">km/h</span>';
+                const needleRotation = -90 + (playerSpeed / maxSpeed) * 180;
+                speedNeedle.style.transform = `rotate(${needleRotation}deg)`;
+                
+                // Keep player in bounds
+                player.x = Math.max(LEFT_BOUNDARY, Math.min(player.x, RIGHT_BOUNDARY));
+                updatePlayerPositionDOM();
+            } catch (error) {
+                console.error("Error updating player position:", error);
+                // Try to reset position to middle as fallback
+                player.x = CONTAINER_WIDTH / 2 - player.width / 2;
+                player.tiltAngle = 0;
+                updatePlayerPositionDOM();
             }
-            if (keys['arrowright'] || keys['d']) {
-                player.x += player.moveSpeed * horizontalSpeedFactor;
-                player.tiltAngle = 15;
-            }
-            
-            if (keys['arrowup'] || keys['w']) {
-                playerSpeed = Math.min(playerSpeed + acceleration, maxSpeed);
-            }
-            if (keys['arrowdown'] || keys['s']) {
-                playerSpeed = Math.max(playerSpeed - deceleration * 2, minSpeed);
-            }
-            
-            if (!(keys['arrowup'] || keys['w'])) {
-                playerSpeed = Math.max(playerSpeed - deceleration * 0.5, minSpeed);
-            }
-            
-            // Set engine idle volume based on speed
-            engineIdleSound.volume = 0.3 + (playerSpeed / maxSpeed) * 0.5;
-            
-            // Update speed display and needle
-            speedDisplay.innerHTML = Math.round(playerSpeed) + ' <span id="speed-unit">km/h</span>';
-            const needleRotation = -90 + (playerSpeed / maxSpeed) * 180;
-            speedNeedle.style.transform = `rotate(${needleRotation}deg)`;
-            
-            // Keep player in bounds
-            player.x = Math.max(LEFT_BOUNDARY, Math.min(player.x, RIGHT_BOUNDARY));
-            updatePlayerPositionDOM();
         }
 
         function updatePlayerPositionDOM() {
@@ -1381,171 +1460,318 @@
         const gameLogicUpdateInterval = 16; // ~60 FPS
         let lastLogicUpdateTime = 0;
 
+        // Performance monitoring and recovery
+        let frameCount = 0;
+        let lastFrameTime = 0;
+        let frameRate = 60;
+        let lowPerformanceMode = false;
+        let isRecovering = false;
+        
+        // Performance monitoring function
+        function monitorPerformance(currentTime) {
+            frameCount++;
+            
+            // Check performance every second
+            if (currentTime - lastFrameTime >= 1000) {
+                frameRate = frameCount;
+                frameCount = 0;
+                lastFrameTime = currentTime;
+                
+                // If frame rate drops too low, enable low performance mode
+                if (frameRate < 25 && !lowPerformanceMode && !isRecovering) {
+                    lowPerformanceMode = true;
+                    showNotification("Performance optimization enabled", 2000);
+                    
+                    // Limit the number of objects
+                    const maxRoadLines = Math.min(roadLines.length, 30);
+                    while (roadLines.length > maxRoadLines) {
+                        const line = roadLines.shift();
+                        if (line.element && line.element.parentNode) {
+                            roadElement.removeChild(line.element);
+                        }
+                    }
+                } 
+                // If performance improves, disable low performance mode
+                else if (frameRate > 50 && lowPerformanceMode) {
+                    lowPerformanceMode = false;
+                }
+            }
+        }
+        
+        // Performance recovery function
+        function recoverFromHang() {
+            if (isRecovering) return;
+            
+            isRecovering = true;
+            showNotification("Recovering game performance...", 2000);
+            
+            // Remove excess objects
+            while (otherBikes.length > 3) {
+                const bike = otherBikes.shift();
+                if (bike.element && bike.element.parentNode) {
+                    roadElement.removeChild(bike.element);
+                }
+            }
+            
+            while (coins.length > 3) {
+                const coin = coins.shift();
+                if (coin.element && coin.element.parentNode) {
+                    roadElement.removeChild(coin.element);
+                }
+            }
+            
+            while (roadLines.length > 20) {
+                const line = roadLines.shift();
+                if (line.element && line.element.parentNode) {
+                    roadElement.removeChild(line.element);
+                }
+            }
+            
+            // Reset timers to avoid accumulated errors
+            lastLogicUpdateTime = performance.now();
+            
+            setTimeout(() => {
+                isRecovering = false;
+                showNotification("Performance restored!", 1500);
+            }, 1000);
+        }
+        
         function gameLoop(timestamp) {
             if (!gameStarted || gamePaused) return;
             
-            const deltaTime = timestamp - lastLogicUpdateTime;
-
-            updatePlayerPosition();
+            // Update timestamp to detect hangs
+            updateRenderTimestamp();
             
-            const roadScrollSpeed = playerSpeed / 20;
-
-            if (playerSpeed > 0) {
-                roadLineTimer += roadScrollSpeed;
-                if (roadLineTimer >= roadLineSpawnInterval) {
-                    createRoadLine();
-                    roadLineTimer = 0;
-                    
-                    const speedScore = Math.floor(playerSpeed / 50);
-                    if (speedScore > 0) {
-                        score += speedScore;
-                        scoreDisplay.textContent = `Score: ${score}`;
-                    }
-                }
+            try {
+                // Monitor performance
+                monitorPerformance(timestamp);
                 
-                // Update road lines
-                for (let i = roadLines.length - 1; i >= 0; i--) {
-                    const line = roadLines[i];
-                    line.y += roadScrollSpeed;
-                    line.element.style.top = line.y + 'px';
-                    const currentZ = getPerspectiveZ(line.y);
-                    line.element.style.transform = `translateX(-50%) translateZ(${currentZ}px) scale(${line.baseScale})`;
-                    
-                    if (line.y > CONTAINER_HEIGHT + 50) {
-                        roadElement.removeChild(line.element);
-                        roadLines.splice(i, 1);
-                    }
-                }
+                const deltaTime = timestamp - lastLogicUpdateTime;
+                // Safeguard against extremely large time deltas (tab inactive, etc.)
+                const safeDeltatime = Math.min(deltaTime, 100);
                 
-                // Generate and update other bikes
-                if (Math.random() < 0.015 * (playerSpeed / 50) && otherBikes.length < 6) {
-                    createOtherBike();
-                }
-                for (let i = otherBikes.length - 1; i >= 0; i--) {
-                    const bike = otherBikes[i];
-                    let bikeGroundSpeed = playerSpeed * bike.groundSpeedRatio;
-                    let movementRate = (playerSpeed - bikeGroundSpeed) / 20;
-                    movementRate = playerSpeed > 0 ? Math.max(0.1, movementRate) : 0;
+                updatePlayerPosition();
+                
+                const roadScrollSpeed = playerSpeed / 20;
 
-                    bike.y += movementRate;
-                    bike.element.style.top = bike.y + 'px';
-                    const currentZ = getPerspectiveZ(bike.y);
-                    bike.element.style.transform = `translateZ(${currentZ}px) scale(${bike.baseScale})`;
-                    
-                    // Improved collision detection
-                    const playerVisualTopY = CONTAINER_HEIGHT - 100 - player.height;
-                    const playerVisualBottomY = CONTAINER_HEIGHT - 100;
-                    
-                    // Get perspective-adjusted collision bounds
-                    const perspectiveScale = Math.min(1, Math.max(0.4, 1 - Math.abs(bike.y - playerVisualTopY) / 200));
-                    const adjustedPlayerWidth = player.width * perspectiveScale * 0.8;
-                    const adjustedBikeWidth = bike.width * perspectiveScale * 0.8;
-                    
-                    // Calculate horizontal distance between bike centers
-                    const horizDistance = Math.abs((bike.x + bike.width/2) - (player.x + player.width/2));
-                    
-                    // Z-axis proximity (closer = more accurate collision needed)
-                    const zProximity = Math.abs(getPerspectiveZ(bike.y) - getPerspectiveZ(playerVisualTopY)) / Math.abs(FOREGROUND_Z - HORIZON_Z);
-                    const collisionThreshold = (adjustedPlayerWidth/2 + adjustedBikeWidth/2) * (1 - zProximity * 0.3);
-                    
-                    // Danger zone considers speed for earlier warnings at higher speeds
-                    const speedFactor = 1 + (playerSpeed / maxSpeed) * 0.5;
-                    const isInDangerZone = 
-                        bike.y + bike.height > playerVisualTopY - 120 * speedFactor && 
-                        bike.y < playerVisualBottomY + 20 &&
-                        horizDistance < collisionThreshold * 1.5;
-                    
-                    // Add danger visual effect with intensity based on proximity
-                    if (isInDangerZone) {
-                        if (!bike.isDanger) {
-                            bike.element.classList.add('danger');
-                            bike.isDanger = true;
+                if (playerSpeed > 0) {
+                    roadLineTimer += roadScrollSpeed;
+                    if (roadLineTimer >= roadLineSpawnInterval) {
+                        // Only create road lines if we're not in low performance mode or we have fewer than a minimum
+                        if (!lowPerformanceMode || roadLines.length < 20) {
+                            createRoadLine();
                         }
+                        roadLineTimer = 0;
                         
-                        // The closer we are to collision, the more intense the effect
-                        const dangerIntensity = Math.min(1, (collisionThreshold * 1.5 - horizDistance) / (collisionThreshold * 0.5));
-                        bike.element.querySelector('img').style.filter = `hue-rotate(${bike.hueRotate}deg) brightness(${bike.brightness}) drop-shadow(0 0 ${20 * dangerIntensity}px rgba(231, 76, 60, ${dangerIntensity}))`;
-                    } else if (bike.isDanger) {
-                        bike.element.classList.remove('danger');
-                        bike.element.querySelector('img').style.filter = `hue-rotate(${bike.hueRotate}deg) brightness(${bike.brightness})`;
-                        bike.isDanger = false;
-                    }
-                    
-                    // Actual collision detection with improved accuracy
-                    const verticalCollision = 
-                        bike.y + bike.height * 0.7 > playerVisualTopY && 
-                        bike.y + bike.height * 0.3 < playerVisualBottomY;
-                    
-                    if (verticalCollision && horizDistance < collisionThreshold) {
-                        gameOver(); return;
-                    }
-
-                    if (bike.y > CONTAINER_HEIGHT + bike.height) {
-                        roadElement.removeChild(bike.element); otherBikes.splice(i, 1);
-                    }
-                }
-                
-                // Generate and update coins
-                if (Math.random() < 0.01 * (playerSpeed / 50) && coins.length < 8) {
-                    createCoin();
-                }
-                for (let i = coins.length - 1; i >= 0; i--) {
-                    const coin = coins[i];
-                    coin.y += roadScrollSpeed;
-                    coin.rotationY = (coin.rotationY + 5 * (playerSpeed / 50 + 0.5)) % 360;
-                    coin.element.style.top = coin.y + 'px';
-                    const currentZ = getPerspectiveZ(coin.y);
-                    coin.element.style.transform = `translateZ(${currentZ}px) rotateY(${coin.rotationY}deg) scale(${coin.baseScale})`;
-                    
-                    const playerVisualTopY = CONTAINER_HEIGHT - 100 - player.height;
-                    const playerVisualBottomY = CONTAINER_HEIGHT - 100;
-
-                    if (!coin.collected &&
-                        coin.y + coin.height > playerVisualTopY && coin.y < playerVisualBottomY &&
-                        Math.abs((coin.x + coin.width/2) - (player.x + player.width/2)) < (player.width/2 + coin.width/2)
-                    ) {
-                        coin.collected = true;
-                        score += 10;
-                        scoreDisplay.textContent = `Score: ${score}`;
-                        
-                        // Add collection animation
-                        coin.element.classList.add('collected');
-                        
-                        // Play coin sound
-                        playCoinSound();
-                        
-                        // Show coin notification randomly
-                        if (Math.random() < 0.3) {
-                            const messages = [
-                                "+10 points! Keep going!",
-                                "Coin collected! Nice!",
-                                "Ka-ching! +10 points!"
-                            ];
-                            const randomMsg = messages[Math.floor(Math.random() * messages.length)];
-                            showNotification(randomMsg, 1500);
+                        const speedScore = Math.floor(playerSpeed / 50);
+                        if (speedScore > 0) {
+                            score += speedScore;
+                            scoreDisplay.textContent = `Score: ${score}`;
                         }
+                    }
+                    
+                    // Batch DOM updates for better performance
+                    const updates = [];
+                    
+                    // Update road lines
+                    for (let i = roadLines.length - 1; i >= 0; i--) {
+                        const line = roadLines[i];
+                        line.y += roadScrollSpeed;
                         
-                        setTimeout(() => {
-                            if (coin.element.parentNode) {
-                                roadElement.removeChild(coin.element);
-                                coins.splice(i, 1);
+                        // Batch DOM updates instead of applying immediately
+                        updates.push(() => {
+                            line.element.style.top = line.y + 'px';
+                            const currentZ = getPerspectiveZ(line.y);
+                            line.element.style.transform = `translateX(-50%) translateZ(${currentZ}px) scale(${line.baseScale})`;
+                        });
+                        
+                        if (line.y > CONTAINER_HEIGHT + 50) {
+                            updates.push(() => {
+                                if (line.element && line.element.parentNode) {
+                                    roadElement.removeChild(line.element);
+                                }
+                            });
+                            roadLines.splice(i, 1);
+                        }
+                    }
+                    
+                    // Generate and update other bikes - limit in low performance mode
+                    const bikeLimit = lowPerformanceMode ? 3 : 6;
+                    if (Math.random() < 0.015 * (playerSpeed / 50) && otherBikes.length < bikeLimit) {
+                        createOtherBike();
+                    }
+                    
+                    for (let i = otherBikes.length - 1; i >= 0; i--) {
+                        const bike = otherBikes[i];
+                        let bikeGroundSpeed = playerSpeed * bike.groundSpeedRatio;
+                        let movementRate = (playerSpeed - bikeGroundSpeed) / 20;
+                        movementRate = playerSpeed > 0 ? Math.max(0.1, movementRate) : 0;
+
+                        bike.y += movementRate;
+                        
+                        // Batch DOM updates
+                        updates.push(() => {
+                            bike.element.style.top = bike.y + 'px';
+                            const currentZ = getPerspectiveZ(bike.y);
+                            bike.element.style.transform = `translateZ(${currentZ}px) scale(${bike.baseScale})`;
+                        });
+                        
+                        // Simplified collision detection in low performance mode
+                        const playerVisualTopY = CONTAINER_HEIGHT - 100 - player.height;
+                        const playerVisualBottomY = CONTAINER_HEIGHT - 100;
+                        
+                        // Get perspective-adjusted collision bounds
+                        const perspectiveScale = Math.min(1, Math.max(0.4, 1 - Math.abs(bike.y - playerVisualTopY) / 200));
+                        const adjustedPlayerWidth = player.width * perspectiveScale * 0.8;
+                        const adjustedBikeWidth = bike.width * perspectiveScale * 0.8;
+                        
+                        // Calculate horizontal distance between bike centers
+                        const horizDistance = Math.abs((bike.x + bike.width/2) - (player.x + player.width/2));
+                        
+                        // Z-axis proximity (closer = more accurate collision needed)
+                        const zProximity = Math.abs(getPerspectiveZ(bike.y) - getPerspectiveZ(playerVisualTopY)) / Math.abs(FOREGROUND_Z - HORIZON_Z);
+                        const collisionThreshold = (adjustedPlayerWidth/2 + adjustedBikeWidth/2) * (1 - zProximity * 0.3);
+                        
+                        // Danger zone considers speed for earlier warnings at higher speeds
+                        const speedFactor = 1 + (playerSpeed / maxSpeed) * 0.5;
+                        const isInDangerZone = 
+                            bike.y + bike.height > playerVisualTopY - 120 * speedFactor && 
+                            bike.y < playerVisualBottomY + 20 &&
+                            horizDistance < collisionThreshold * 1.5;
+                        
+                        // Add danger visual effect with intensity based on proximity
+                        // Skip visual effects in low performance mode
+                        if (isInDangerZone && !lowPerformanceMode) {
+                            if (!bike.isDanger) {
+                                updates.push(() => {
+                                    bike.element.classList.add('danger');
+                                    bike.isDanger = true;
+                                });
                             }
-                        }, 500);
-                        continue;
+                            
+                            // The closer we are to collision, the more intense the effect
+                            const dangerIntensity = Math.min(1, (collisionThreshold * 1.5 - horizDistance) / (collisionThreshold * 0.5));
+                            updates.push(() => {
+                                bike.element.querySelector('img').style.filter = `hue-rotate(${bike.hueRotate}deg) brightness(${bike.brightness}) drop-shadow(0 0 ${20 * dangerIntensity}px rgba(231, 76, 60, ${dangerIntensity}))`;
+                            });
+                        } else if (bike.isDanger) {
+                            updates.push(() => {
+                                bike.element.classList.remove('danger');
+                                bike.element.querySelector('img').style.filter = `hue-rotate(${bike.hueRotate}deg) brightness(${bike.brightness})`;
+                                bike.isDanger = false;
+                            });
+                        }
+                        
+                        // Actual collision detection with improved accuracy
+                        const verticalCollision = 
+                            bike.y + bike.height * 0.7 > playerVisualTopY && 
+                            bike.y + bike.height * 0.3 < playerVisualBottomY;
+                        
+                        if (verticalCollision && horizDistance < collisionThreshold) {
+                            gameOver(); 
+                            return; // Exit the game loop immediately
+                        }
+
+                        if (bike.y > CONTAINER_HEIGHT + bike.height) {
+                            updates.push(() => {
+                                if (bike.element && bike.element.parentNode) {
+                                    roadElement.removeChild(bike.element);
+                                }
+                            });
+                            otherBikes.splice(i, 1);
+                        }
                     }
-                    if (coin.y > CONTAINER_HEIGHT + coin.height) {
-                        roadElement.removeChild(coin.element); coins.splice(i, 1);
+                    
+                    // Generate and update coins - limit in low performance mode
+                    const coinLimit = lowPerformanceMode ? 4 : 8;
+                    if (Math.random() < 0.01 * (playerSpeed / 50) && coins.length < coinLimit) {
+                        createCoin();
                     }
+                    
+                    for (let i = coins.length - 1; i >= 0; i--) {
+                        const coin = coins[i];
+                        coin.y += roadScrollSpeed;
+                        coin.rotationY = (coin.rotationY + 5 * (playerSpeed / 50 + 0.5)) % 360;
+                        
+                        updates.push(() => {
+                            coin.element.style.top = coin.y + 'px';
+                            const currentZ = getPerspectiveZ(coin.y);
+                            coin.element.style.transform = `translateZ(${currentZ}px) rotateY(${coin.rotationY}deg) scale(${coin.baseScale})`;
+                        });
+                        
+                        const playerVisualTopY = CONTAINER_HEIGHT - 100 - player.height;
+                        const playerVisualBottomY = CONTAINER_HEIGHT - 100;
+
+                        if (!coin.collected &&
+                            coin.y + coin.height > playerVisualTopY && coin.y < playerVisualBottomY &&
+                            Math.abs((coin.x + coin.width/2) - (player.x + player.width/2)) < (player.width/2 + coin.width/2)
+                        ) {
+                            coin.collected = true;
+                            score += 10;
+                            scoreDisplay.textContent = `Score: ${score}`;
+                            
+                            updates.push(() => {
+                                coin.element.classList.add('collected');
+                            });
+                            
+                            // Play coin sound
+                            playCoinSound();
+                            
+                            // Show coin notification randomly - skip in low performance mode
+                            if (Math.random() < 0.3 && !lowPerformanceMode) {
+                                const messages = [
+                                    "+10 points! Keep going!",
+                                    "Coin collected! Nice!",
+                                    "Ka-ching! +10 points!"
+                                ];
+                                const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+                                showNotification(randomMsg, 1500);
+                            }
+                            
+                            setTimeout(() => {
+                                if (coin.element && coin.element.parentNode) {
+                                    roadElement.removeChild(coin.element);
+                                }
+                                const coinIndex = coins.indexOf(coin);
+                                if (coinIndex > -1) {
+                                    coins.splice(coinIndex, 1);
+                                }
+                            }, 500);
+                            continue;
+                        }
+                        
+                        if (coin.y > CONTAINER_HEIGHT + coin.height) {
+                            updates.push(() => {
+                                if (coin.element && coin.element.parentNode) {
+                                    roadElement.removeChild(coin.element);
+                                }
+                            });
+                            coins.splice(i, 1);
+                        }
+                    }
+                    
+                    // Apply all batched DOM updates
+                    // Use requestAnimationFrame to ensure they happen during browser's painting phase
+                    window.requestAnimationFrame(() => {
+                        for (let i = 0; i < updates.length; i++) {
+                            updates[i]();
+                        }
+                    });
+                    
+                } else {
+                    roadLineTimer = 0;
                 }
                 
-                // Optional: Uncomment to debug collision hitboxes
-                // if (window.debug) addCollisionVisualization();
-            } else {
-                roadLineTimer = 0;
+                lastLogicUpdateTime = timestamp;
+                requestAnimationFrame(gameLoop);
+                
+            } catch (error) {
+                console.error("Game error:", error);
+                // Try to recover from hang
+                recoverFromHang();
+                lastLogicUpdateTime = timestamp;
+                requestAnimationFrame(gameLoop);
             }
-            
-            lastLogicUpdateTime = timestamp;
-            requestAnimationFrame(gameLoop);
         }
         
         // Initialize high score display
@@ -1577,13 +1803,50 @@
             }
         });
         
-        // Debug mode toggle (uncomment to enable)
-        // window.addEventListener('keydown', function(e) {
-        //    if (e.key.toLowerCase() === 'd' && e.ctrlKey) {
-        //        window.debug = !window.debug;
-        //        showNotification(window.debug ? 'Debug mode enabled' : 'Debug mode disabled', 1500);
-        //    }
-        // });
+        // Add emergency restart function
+        let emergencyRestartTimer = null;
+        
+        window.addEventListener('keydown', function(e) {
+            // Emergency restart with R key
+            if (e.key.toLowerCase() === 'r' && e.ctrlKey) {
+                showNotification("Emergency restart triggered!", 2000);
+                clearTimeout(emergencyRestartTimer);
+                
+                // Force cleanup and restart
+                [...otherBikes, ...coins, ...roadLines].forEach(obj => {
+                    if (obj.element && obj.element.parentNode) {
+                        try {
+                            roadElement.removeChild(obj.element);
+                        } catch (e) {
+                            // Ignore errors during cleanup
+                        }
+                    }
+                });
+                
+                otherBikes = []; coins = []; roadLines = [];
+                
+                // Reset game state
+                playerSpeed = 0;
+                score = Math.max(0, score - 50); // Penalty for emergency restart
+                roadLineTimer = 0;
+                
+                // Reset player position
+                player.x = CONTAINER_WIDTH / 2 - player.width / 2;
+                player.tiltAngle = 0;
+                updatePlayerPositionDOM();
+                
+                // Update displays
+                scoreDisplay.textContent = `Score: ${score}`;
+                speedDisplay.textContent = '0';
+                speedNeedle.style.transform = 'rotate(-90deg)';
+                
+                // Restart game logic
+                lastLogicUpdateTime = performance.now();
+                
+                // Create initial road lines
+                createInitialRoadLines();
+            }
+        });
     </script>
 </body>
 </html>
