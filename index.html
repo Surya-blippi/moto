@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Road Rage Motorbike</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400;700&display=swap');
+        
+        :root {
+            --primary-color: #E74C3C;
+            --secondary-color: #3498DB;
+            --accent-color: #F1C40F;
+            --dark-color: #2C3E50;
+            --light-color: #ECF0F1;
+            --upthrust-color: #00bfff; /* Adding Upthrust brand color (assuming this is close) */
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #2C3E50, #1A2530);
+            font-family: 'Roboto', sans-serif;
+            overflow: hidden;
+            color: var(--light-color);
+        }
+        
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            overflow: hidden;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 40px rgba(52, 152, 219, 0.3);
+            perspective: 800px;
+            perspective-origin: 50% 30%;
+            background: linear-gradient(to bottom, #3a506b 0%, #4a607b 40%, #555 70%);
+            transition: box-shadow 0.3s ease;
+        }
+        
+        #game-container:hover {
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6), 0 0 60px rgba(52, 152, 219, 0.4);
+        }
+        
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 100;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            backdrop-filter: blur(5px);
+            background-color: rgba(0, 0, 0, 0.2);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .hud-item {
+            display: flex;
+            align-items: center;
+            margin: 0 10px;
+        }
+        
+        #score-display, #speed-display, #high-score-display {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 20px;
+            color: white;
+            text-shadow: 0 0 10px rgba(52, 152, 219, 0.7);
+            transition: all 0.3s ease;
+        }
+        
+        #score-display::before {
+            content: "⭐";
+            margin-right: 5px;
+            color: var(--accent-color);
+        }
+        
+        #high-score-display::before {
+            content: "🏆";
+            margin-right: 5px;
+            color: #E67E22;
+        }
+        
+        #speedometer {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 120px;
+            height: 120px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+        }
+        
+        #speed-needle {
+            position: absolute;
+            width: 4px;
+            height: 50px;
+            background-color: var(--primary-color);
+            bottom: 60px;
+            left: 58px;
+            transform-origin: bottom center;
+            transform: rotate(-90deg);
+            transition: transform 0.2s ease-out;
+            border-radius: 2px;
+            z-index: 1;
+            box-shadow: 0 0 10px rgba(231, 76, 60, 0.7);
+        }
+        
+        #speed-needle::after {
+            content: "";
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background-color: white;
+            border-radius: 50%;
+            bottom: -6px;
+            left: -4px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+        }
+        
+        #speed-text {
+            margin-top: 25px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            color: white;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
+        }
+        
+        #speed-unit {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        #road {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transform: rotateX(60deg);  /* Increased angle for better road visibility */
+            overflow: hidden;
+            z-index: 1;
+        }
+        
+        #player {
+            position: absolute;
+            width: 60px;
+            height: 100px;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateZ(10px);
+            z-index: 10;
+            transition: left 0.1s ease-out, transform 0.1s ease-out;
+        }
+
+        #player img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            position: absolute;
+            bottom: 0;
+            filter: drop-shadow(0 0 10px rgba(52, 152, 219, 0.7));
+            transition: filter 0.3s ease;
+        }
+        
+        #player.accelerating img {
+            filter: drop-shadow(0 0 15px rgba(46, 204, 113, 0.8));
+        }
+        
+        #player.braking img {
+            filter: drop-shadow(0 0 15px rgba(231, 76, 60, 0.8));
+        }
+        
+        .road-line {
+            position: absolute;
+            height: 40px;
+            width: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+        }
+        
+        .road-edge {
+            position: absolute;
+            height: 100%;
+            width: 30px;
+            background: repeating-linear-gradient(
+                0deg, 
+                #E67E22, #E67E22 100px,
+                #D35400 100px, #D35400 200px
+            );
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        .edge-left { 
+            left: 0; 
+            border-right: 3px solid white;
+        }
+        
+        .edge-right { 
+            right: 0; 
+            border-left: 3px solid white;
+        }
+        
+        .other-bike {
+            position: absolute;
+            width: 60px;
+            height: 100px;
+            z-index: 5;
+            transition: filter 0.3s ease;
+        }
+        
+        .other-bike img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            position: absolute;
+            bottom: 0;
+            filter: drop-shadow(0 0 8px rgba(231, 76, 60, 0.6));
+        }
+        
+        .other-bike.danger img {
+            filter: drop-shadow(0 0 20px rgba(231, 76, 60, 1));
+        }
+        
+        .coin {
+            position: absolute;
+            width: 25px; 
+            height: 25px;
+            background: radial-gradient(circle, #FFD700 30%, #FFA500 70%);
+            border-radius: 50%;
+            box-shadow: 0 0 15px gold, inset 0 0 8px rgba(255, 255, 255, 0.8);
+            z-index: 5;
+            transform-style: preserve-3d;
+        }
+        
+        .coin::after {
+            content: '$';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #B7950B;
+            font-weight: bold;
+            font-size: 16px;
+            text-shadow: 0 0 2px white;
+        }
+        
+        .coin.collected {
+            animation: coinCollect 0.5s ease-out;
+        }
+        
+        @keyframes coinCollect {
+            0% { transform: translateZ(0) scale(1); opacity: 1; }
+            100% { transform: translateZ(50px) scale(2); opacity: 0; }
+        }
+        
+        #game-over, #start-screen, #pause-screen {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(135deg, rgba(44, 62, 80, 0.9), rgba(0, 0, 0, 0.85));
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 200;
+            backdrop-filter: blur(8px);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        
+        #game-over.visible, #start-screen.visible, #pause-screen.visible {
+            opacity: 1;
+        }
+        
+        #game-over { display: none; }
+        #pause-screen { display: none; }
+        
+        .screen-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            text-shadow: 0 0 20px rgba(231, 76, 60, 0.7), 0 5px 15px rgba(0, 0, 0, 0.5);
+            letter-spacing: 3px;
+            transform: perspective(500px) rotateX(10deg);
+            animation: titlePulse 3s infinite alternate;
+        }
+        
+        @keyframes titlePulse {
+            0% { text-shadow: 0 0 20px rgba(231, 76, 60, 0.7), 0 5px 15px rgba(0, 0, 0, 0.5); }
+            100% { text-shadow: 0 0 30px rgba(231, 76, 60, 1), 0 5px 15px rgba(0, 0, 0, 0.5); }
+        }
+        
+        .screen-subtitle {
+            font-size: 24px;
+            margin-bottom: 30px;
+            color: var(--light-color);
+            text-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        #final-score {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 28px;
+            margin-bottom: 30px;
+            color: var(--accent-color);
+            text-shadow: 0 0 15px rgba(241, 196, 15, 0.7);
+        }
+        
+        #final-score.new-high-score {
+            color: #E67E22;
+            font-size: 32px;
+            animation: newHighScore 1s infinite alternate;
+        }
+        
+        @keyframes newHighScore {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.1); }
+        }
+        
+        .btn {
+            margin: 10px;
+            padding: 12px 30px;
+            font-size: 18px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+            border: none;
+            color: white;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            background-size: 200% auto;
+            position: relative;
+            overflow: hidden;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
+            transform: rotate(30deg);
+            transition: transform 0.5s ease;
+            pointer-events: none;
+        }
+        
+        .btn:hover::after {
+            transform: rotate(30deg) translate(50%, 50%);
+        }
+        
+        .btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-primary {
+            background-image: linear-gradient(to right, #27AE60, #2ECC71, #27AE60);
+        }
+        
+        .btn-primary:hover {
+            background-position: right center;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(39, 174, 96, 0.4);
+        }
+        
+        .btn-danger {
+            background-image: linear-gradient(to right, #C0392B, #E74C3C, #C0392B);
+        }
+        
+        .btn-danger:hover {
+            background-position: right center;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(231, 76, 60, 0.4);
+        }
+        
+        .btn-secondary {
+            background-image: linear-gradient(to right, #2980B9, #3498DB, #2980B9);
+        }
+        
+        .btn-secondary:hover {
+            background-position: right center;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.4);
+        }
+        
+        #controls-container {
+            background-color: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            width: 80%;
+            max-width: 400px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        #controls-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            margin-bottom: 15px;
+            text-align: center;
+            color: var(--accent-color);
+        }
+        
+        .control-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
+        }
+        
+        .control-key {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            padding: 5px 10px;
+            font-family: 'Orbitron', sans-serif;
+            min-width: 80px;
+            text-align: center;
+            color: var(--light-color);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .control-action {
+            color: var(--light-color);
+        }
+        
+        #notification {
+            position: absolute;
+            top: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 18px;
+            z-index: 300;
+            transition: top 0.5s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        #notification.show {
+            top: 20px;
+        }
+        
+        #music-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+        }
+        
+        .music-btn {
+            background-color: rgba(0, 0, 0, 0.5);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            margin-right: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .music-btn:hover {
+            background-color: rgba(231, 76, 60, 0.7);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+        }
+        
+        .music-btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .music-btn i {
+            font-size: 18px;
+        }
+        
+        /* New styles for Upthrust Esports branding */
+        #upthrust-logo {
+            display: block;
+            margin: 0 auto 15px;
+            max-width: 180px;
+            height: auto;
+            filter: drop-shadow(0 0 10px rgba(0, 191, 255, 0.7));
+            animation: logoGlow 3s infinite alternate;
+        }
+        
+        @keyframes logoGlow {
+            0% { filter: drop-shadow(0 0 10px rgba(0, 191, 255, 0.5)); }
+            100% { filter: drop-shadow(0 0 20px rgba(0, 191, 255, 0.9)); }
+        }
+        
+        .powered-by {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 16px;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(0, 191, 255, 0.7);
+            text-align: center;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+        }
+        
+        #upthrust-watermark {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 120;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 5px 10px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            pointer-events: none;
+        }
+        
+        #upthrust-watermark img {
+            width: 25px;
+            height: auto;
+            margin-right: 8px;
+        }
+        
+        #upthrust-watermark span {
+            font-size: 12px;
+            font-family: 'Orbitron', sans-serif;
+            color: white;
+            text-shadow: 0 0 5px rgba(0, 191, 255, 0.7);
+            white-space: nowrap;
+        }
+        
+        @media (max-width: 850px) {
+            #game-container {
+                width: 95vw;
+                height: 70vh;
+            }
+            
+            #speedometer {
+                width: 100px;
+                height: 100px;
+            }
+            
+            #speed-needle {
+                height: 40px;
+                bottom: 50px;
+                left: 48px;
+            }
+            
+            #speed-text {
+                font-size: 16px;
+                margin-top: 20px;
+            }
+            
+            .screen-title {
+                font-size: 36px;
+            }
+            
+            .screen-subtitle {
+                font-size: 20px;
+            }
+            
+            #final-score {
+                font-size: 24px;
+            }
+            
+            .btn {
+                padding: 10px 25px;
+                font-size: 16px;
+            }
+            
+            #upthrust-logo {
+                max-width: 150px;
+            }
+            
+            .powered-by {
+                font-size: 14px;
+            }
+        }
+        
+        @media (max-width: 500px) {
+            #game-container {
+                height: 60vh;
+            }
+            
+            #hud {
+                padding: 10px;
+            }
+            
+            #score-display, #speed-display, #high-score-display {
+                font-size: 16px;
+            }
+            
+            #speedometer {
+                width: 80px;
+                height: 80px;
+                bottom: 10px;
+                right: 10px;
+            }
+            
+            #speed-needle {
+                height: 30px;
+                bottom: 40px;
+                left: 38px;
+            }
+            
+            #speed-text {
+                font-size: 14px;
+                margin-top: 15px;
+            }
+            
+            .screen-title {
+                font-size: 28px;
+            }
+            
+            .screen-subtitle {
+                font-size: 16px;
+            }
+            
+            #final-score {
+                font-size: 20px;
+            }
+            
+            .btn {
+                padding: 8px 20px;
+                font-size: 14px;
+            }
+            
+            #controls-container {
+                width: 90%;
+                padding: 15px;
+            }
+            
+            .control-key {
+                min-width: 60px;
+                font-size: 12px;
+            }
+            
+            .control-action {
+                font-size: 12px;
+            }
+            
+            #music-controls {
+                bottom: 10px;
+                left: 10px;
+            }
+            
+            .music-btn {
+                width: 30px;
+                height: 30px;
+            }
+            
+            #upthrust-logo {
+                max-width: 120px;
+            }
+            
+            .powered-by {
+                font-size: 12px;
+            }
+            
+            #upthrust-watermark {
+                padding: 3px 8px;
+            }
+            
+            #upthrust-watermark img {
+                width: 20px;
+            }
+            
+            #upthrust-watermark span {
+                font-size: 10px;
+            }
+        }
+        
+        /* Hide audio elements */
+        #sound-container {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="road">
+            <div class="road-edge edge-left"></div>
+            <div class="road-edge edge-right"></div>
+        </div>
+        
+        <div id="player">
+            <img src="bike.png" alt="Player Bike">
+        </div>
+        
+        <div id="hud">
+            <div class="hud-item">
+                <div id="score-display">Score: 0</div>
+            </div>
+            <div class="hud-item">
+                <div id="high-score-display">Best: 0</div>
+            </div>
+        </div>
+        
+        <!-- Upthrust Esports watermark that stays during gameplay -->
+        <div id="upthrust-watermark">
+            <img src="logo.png" alt="Upthrust Esports">
+            <span>POWERED BY UPTHRUST ESPORTS</span>
+        </div>
+        
+        <div id="speedometer">
+            <div id="speed-needle"></div>
+            <div id="speed-text">0 <span id="speed-unit">km/h</span></div>
+        </div>
+        
+        <div id="music-controls">
+            <button class="music-btn" id="music-toggle"><i class="fas fa-volume-up"></i></button>
+        </div>
+        
+        <div id="notification">Game paused. Press P to resume.</div>
+        
+        <div id="start-screen" class="visible">
+            <h1 class="screen-title">3D ROAD RAGE</h1>
+            <p class="screen-subtitle">Dodge traffic and collect coins to survive!</p>
+            
+            <!-- Upthrust Esports branding on start screen -->
+            <img id="upthrust-logo" src="logo.png" alt="Upthrust Esports Logo">
+            <p class="powered-by">POWERED BY UPTHRUST ESPORTS</p>
+            
+            <button id="start-btn" class="btn btn-primary">START GAME</button>
+            
+            <div id="controls-container">
+                <h3 id="controls-title">CONTROLS</h3>
+                <div class="control-item">
+                    <span class="control-key">W / ↑</span>
+                    <span class="control-action">Accelerate</span>
+                </div>
+                <div class="control-item">
+                    <span class="control-key">S / ↓</span>
+                    <span class="control-action">Brake</span>
+                </div>
+                <div class="control-item">
+                    <span class="control-key">A / ←</span>
+                    <span class="control-action">Move Left</span>
+                </div>
+                <div class="control-item">
+                    <span class="control-key">D / →</span>
+                    <span class="control-action">Move Right</span>
+                </div>
+                <div class="control-item">
+                    <span class="control-key">P</span>
+                    <span class="control-action">Pause Game</span>
+                </div>
+            </div>
+        </div>
+        
+        <div id="pause-screen">
+            <h1 class="screen-title">PAUSED</h1>
+            <p class="screen-subtitle">Take a break, rider!</p>
+            <!-- Adding logo to pause screen too -->
+            <img id="upthrust-logo" src="logo.png" alt="Upthrust Esports Logo" style="max-width: 120px;">
+            <button id="resume-btn" class="btn btn-primary">RESUME</button>
+            <button id="restart-from-pause-btn" class="btn btn-danger">RESTART</button>
+        </div>
+        
+        <div id="game-over">
+            <h1 class="screen-title">GAME OVER</h1>
+            <div id="final-score">Score: 0</div>
+            <!-- Adding logo to game over screen -->
+            <img id="upthrust-logo" src="logo.png" alt="Upthrust Esports Logo" style="max-width: 120px; margin: 10px 0 20px;">
+            <button id="restart-btn" class="btn btn-danger">PLAY AGAIN</button>
+            <button id="menu-btn" class="btn btn-secondary">MAIN MENU</button>
+        </div>
+    </div>
+    
+    <!-- Sound container -->
+    <div id="sound-container">
+        <audio id="acceleration-sound" src="acceleration.mp3" preload="auto"></audio>
+        <audio id="brake-sound" src="brake.mp3" preload="auto"></audio>
+        <audio id="collision-sound" src="collision.mp3" preload="auto"></audio>
+        <audio id="coin-sound" src="coin.mp3" preload="auto"></audio>
+        <audio id="engine-idle-sound" src="engine_idle.mp3" preload="auto" loop></audio>
+        <audio id="background-music" src="background_music.mp3" preload="auto" loop></audio>
+    </div>
+
+    <script>
+        // DOM Elements
+        const gameContainer = document.getElementById('game-container');
+        const roadElement = document.getElementById('road');
+        const playerElement = document.getElementById('player');
+        const scoreDisplay = document.getElementById('score-display');
+        const highScoreDisplay = document.getElementById('high-score-display');
+        const speedDisplay = document.getElementById('speed-text');
+        const speedNeedle = document.getElementById('speed-needle');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const gameOverScreen = document.getElementById('game-over');
+        const startScreen = document.getElementById('start-screen');
+        const pauseScreen = document.getElementById('pause-screen');
+        const notification = document.getElementById('notification');
+        const restartBtn = document.getElementById('restart-btn');
+        const startBtn = document.getElementById('start-btn');
+        const resumeBtn = document.getElementById('resume-btn');
+        const menuBtn = document.getElementById('menu-btn');
+        const restartFromPauseBtn = document.getElementById('restart-from-pause-btn');
+        const musicToggle = document.getElementById('music-toggle');
+        const upthrustWatermark = document.getElementById('upthrust-watermark');
+        
+        // Sound elements
+        const accelerationSound = document.getElementById('acceleration-sound');
+        const brakeSound = document.getElementById('brake-sound');
+        const collisionSound = document.getElementById('collision-sound');
+        const coinSound = document.getElementById('coin-sound');
+        const engineIdleSound = document.getElementById('engine-idle-sound');
+        const backgroundMusic = document.getElementById('background-music');
+        
+        // Game state variables
+        let gameStarted = false;
+        let gamePaused = false;
+        let playerSpeed = 0;
+        const maxSpeed = 300;
+        const minSpeed = 0;
+        const acceleration = 2;
+        const deceleration = 1;
+        let score = 0;
+        let highScore = localStorage.getItem('highScore') || 0;
+        highScoreDisplay.textContent = `Best: ${highScore}`;
+        
+        let roadLines = [];
+        let roadLineTimer = 0;
+        const roadLineSpawnInterval = 100;
+
+        let player = {
+            x: 0,
+            width: 60,
+            height: 100,
+            moveSpeed: 7,
+            tiltAngle: 0
+        };
+        
+        let otherBikes = [];
+        let coins = [];
+        let keys = {};
+        let musicOn = true;
+        
+        const CONTAINER_WIDTH = gameContainer.offsetWidth;
+        const CONTAINER_HEIGHT = gameContainer.offsetHeight;
+        const LEFT_BOUNDARY = 80;
+        const RIGHT_BOUNDARY = CONTAINER_WIDTH - player.width - 80;
+        
+        const HORIZON_Z = -500;  // Increased depth for better perspective
+        const PLAYER_LEVEL_Z = 0;
+        const FOREGROUND_Z = 80;
+
+        player.x = CONTAINER_WIDTH / 2 - player.width / 2;
+        
+        // Sound functions
+        function playAccelerationSound() {
+            if (accelerationSound.paused) {
+                accelerationSound.currentTime = 0;
+                accelerationSound.play();
+            }
+        }
+        
+        function stopAccelerationSound() {
+            accelerationSound.pause();
+            accelerationSound.currentTime = 0;
+        }
+        
+        function playBrakeSound() {
+            if (brakeSound.paused) {
+                brakeSound.currentTime = 0;
+                brakeSound.play();
+            }
+        }
+        
+        function stopBrakeSound() {
+            brakeSound.pause();
+            brakeSound.currentTime = 0;
+        }
+        
+        function playCollisionSound() {
+            collisionSound.currentTime = 0;
+            collisionSound.play();
+        }
+        
+        function playCoinSound() {
+            coinSound.currentTime = 0;
+            coinSound.play();
+        }
+        
+        function startEngineIdleSound() {
+            engineIdleSound.volume = 0.3;
+            engineIdleSound.play();
+        }
+        
+        function stopEngineIdleSound() {
+            engineIdleSound.pause();
+            engineIdleSound.currentTime = 0;
+        }
+        
+        function toggleBackgroundMusic() {
+            if (musicOn) {
+                backgroundMusic.volume = 0.3;
+                backgroundMusic.play();
+                musicToggle.innerHTML = '<i class="fas fa-volume-up"></i>';
+            } else {
+                backgroundMusic.pause();
+                musicToggle.innerHTML = '<i class="fas fa-volume-mute"></i>';
+            }
+        }
+        
+        // Event Listeners
+        document.addEventListener('keydown', e => {
+            keys[e.key.toLowerCase()] = true;
+            
+            // Pause game when P is pressed
+            if (e.key.toLowerCase() === 'p' && gameStarted) {
+                togglePause();
+            }
+            
+            // Sound triggers for key press events
+            if ((e.key.toLowerCase() === 'arrowup' || e.key.toLowerCase() === 'w') && gameStarted && !gamePaused) {
+                playAccelerationSound();
+                playerElement.classList.add('accelerating');
+            }
+            
+            if ((e.key.toLowerCase() === 'arrowdown' || e.key.toLowerCase() === 's') && gameStarted && !gamePaused) {
+                playBrakeSound();
+                playerElement.classList.add('braking');
+            }
+        });
+        
+        document.addEventListener('keyup', e => {
+            keys[e.key.toLowerCase()] = false;
+            
+            // Stop sounds when keys are released
+            if (e.key.toLowerCase() === 'arrowup' || e.key.toLowerCase() === 'w') {
+                stopAccelerationSound();
+                playerElement.classList.remove('accelerating');
+            }
+            
+            if (e.key.toLowerCase() === 'arrowdown' || e.key.toLowerCase() === 's') {
+                stopBrakeSound();
+                playerElement.classList.remove('braking');
+            }
+        });
+        
+        restartBtn.addEventListener('click', restartGame);
+        startBtn.addEventListener('click', startGame);
+        resumeBtn.addEventListener('click', togglePause);
+        menuBtn.addEventListener('click', returnToMenu);
+        restartFromPauseBtn.addEventListener('click', restartGame);
+        musicToggle.addEventListener('click', () => {
+            musicOn = !musicOn;
+            toggleBackgroundMusic();
+        });
+        
+        // Helper functions
+        function showNotification(message, duration = 2000) {
+            notification.textContent = message;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, duration);
+        }
+        
+        function togglePause() {
+            if (!gameStarted) return;
+            
+            gamePaused = !gamePaused;
+            
+            if (gamePaused) {
+                pauseScreen.style.display = 'flex';
+                setTimeout(() => pauseScreen.classList.add('visible'), 10);
+                
+                // Pause sounds
+                stopAccelerationSound();
+                stopBrakeSound();
+                engineIdleSound.volume = 0.1;
+                if (backgroundMusic) backgroundMusic.volume = 0.1;
+            } else {
+                pauseScreen.classList.remove('visible');
+                setTimeout(() => pauseScreen.style.display = 'none', 500);
+                
+                // Resume sounds
+                engineIdleSound.volume = 0.3 + (playerSpeed / maxSpeed) * 0.5;
+                if (backgroundMusic && musicOn) backgroundMusic.volume = 0.3;
+                
+                // Restart game loop
+                lastLogicUpdateTime = performance.now();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+        
+        function returnToMenu() {
+            gameStarted = false;
+            gamePaused = false;
+            
+            [...otherBikes, ...coins, ...roadLines].forEach(obj => {
+                if (obj.element && obj.element.parentNode) {
+                    obj.element.parentNode.removeChild(obj.element);
+                }
+            });
+            
+            otherBikes = []; coins = []; roadLines = [];
+            
+            playerSpeed = 0;
+            score = 0;
+            roadLineTimer = 0;
+            
+            // Stop sounds
+            stopEngineIdleSound();
+            stopAccelerationSound();
+            stopBrakeSound();
+            
+            // Update displays
+            scoreDisplay.textContent = 'Score: 0';
+            speedDisplay.textContent = '0';
+            speedNeedle.style.transform = 'rotate(-90deg)';
+            
+            // Hide game screens
+            gameOverScreen.style.display = 'none';
+            
+            // Show start screen
+            startScreen.style.display = 'flex';
+            setTimeout(() => startScreen.classList.add('visible'), 10);
+        }
+        
+        function getPerspectiveZ(yPos) {
+            const playerVisualY = CONTAINER_HEIGHT - 100 - player.height;
+
+            if (yPos < playerVisualY) {
+                const progress = Math.max(0, yPos) / playerVisualY;
+                return HORIZON_Z + progress * (PLAYER_LEVEL_Z - HORIZON_Z);
+            } else {
+                const progress = Math.min(1, (yPos - playerVisualY) / (CONTAINER_HEIGHT - playerVisualY));
+                return PLAYER_LEVEL_Z + progress * (FOREGROUND_Z - PLAYER_LEVEL_Z);
+            }
+        }
+        
+        function createInitialRoadLines() {
+            const numLines = Math.ceil(CONTAINER_HEIGHT / (roadLineSpawnInterval / 3)) + 5;  // Added more initial lines
+            const extraDistanceLines = 10;  // Additional lines for the distant part of the road
+            
+            // Create regular road lines
+            for (let i = 0; i < numLines; i++) {
+                createRoadLine(i * (roadLineSpawnInterval / 2) - roadLineSpawnInterval);
+            }
+            
+            // Create additional lines for the distance with smaller spacing
+            for (let i = 1; i <= extraDistanceLines; i++) {
+                const farPosition = -roadLineSpawnInterval - (i * 30);
+                createRoadLine(farPosition);
+            }
+        }
+        
+        function createRoadLine(yPos = -40) {
+            const roadLineEl = document.createElement('div');
+            roadLineEl.className = 'road-line';
+            roadLineEl.style.top = yPos + 'px';
+            const initialZ = getPerspectiveZ(yPos);
+            roadLineEl.style.transform = `translateX(-50%) translateZ(${initialZ}px)`;
+            
+            roadElement.appendChild(roadLineEl);
+            roadLines.push({ element: roadLineEl, y: yPos, baseScale: 1 });
+        }
+        
+        function startGame() {
+            gameStarted = true;
+            gamePaused = false;
+            
+            // Hide start screen with animation
+            startScreen.classList.remove('visible');
+            setTimeout(() => startScreen.style.display = 'none', 500);
+            
+            // Reset player position
+            player.x = CONTAINER_WIDTH / 2 - player.width / 2;
+            player.tiltAngle = 0;
+            updatePlayerPositionDOM();
+            
+            // Create initial road lines
+            createInitialRoadLines();
+            
+            // Start sounds
+            startEngineIdleSound();
+            if (musicOn) {
+                backgroundMusic.volume = 0.3;
+                backgroundMusic.play();
+            }
+            
+            // Show welcome notification
+            showNotification('Start your engines! Press W to accelerate.', 3000);
+            
+            // Start game loop
+            lastLogicUpdateTime = performance.now();
+            gameLoop();
+        }
+        
+        function restartGame() {
+            // Remove existing game objects
+            [...otherBikes, ...coins, ...roadLines].forEach(obj => {
+                if (obj.element && obj.element.parentNode) {
+                    obj.element.parentNode.removeChild(obj.element);
+                }
+            });
+            
+            otherBikes = []; coins = []; roadLines = [];
+            
+            // Reset game state
+            playerSpeed = 0;
+            score = 0;
+            roadLineTimer = 0;
+            
+            // Reset player position
+            player.x = CONTAINER_WIDTH / 2 - player.width / 2;
+            player.tiltAngle = 0;
+            updatePlayerPositionDOM();
+            
+            // Update displays
+            scoreDisplay.textContent = 'Score: 0';
+            speedDisplay.textContent = '0';
+            speedNeedle.style.transform = 'rotate(-90deg)';
+            
+            // Hide game screens
+            gameOverScreen.style.display = 'none';
+            pauseScreen.style.display = 'none';
+            pauseScreen.classList.remove('visible');
+            
+            // Create initial road lines
+            createInitialRoadLines();
+            
+            // Start sounds
+            startEngineIdleSound();
+            if (musicOn) {
+                backgroundMusic.volume = 0.3;
+                backgroundMusic.play();
+            }
+            
+            // Show restart notification
+            showNotification('New race started!', 2000);
+            
+            // Start game
+            gameStarted = true;
+            gamePaused = false;
+            lastLogicUpdateTime = performance.now();
+            gameLoop();
+        }
+        
+        function gameOver() {
+            gameStarted = false;
+            
+            // Play collision sound
+            playCollisionSound();
+            
+            // Stop sounds
+            stopEngineIdleSound();
+            stopAccelerationSound();
+            stopBrakeSound();
+            if (backgroundMusic) backgroundMusic.volume = 0.1;
+            
+            // Update high score
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('highScore', highScore);
+                highScoreDisplay.textContent = `Best: ${highScore}`;
+                finalScoreDisplay.textContent = `Score: ${score} - New High Score!`;
+                finalScoreDisplay.classList.add('new-high-score');
+            } else {
+                finalScoreDisplay.textContent = `Score: ${score}`;
+                finalScoreDisplay.classList.remove('new-high-score');
+            }
+            
+            // Show game over screen with animation
+            gameOverScreen.style.display = 'flex';
+            setTimeout(() => gameOverScreen.classList.add('visible'), 10);
+        }
+        
+        function createOtherBike() {
+            const bikeElement = document.createElement('div');
+            bikeElement.className = 'other-bike';
+            
+            // Create and add bike image
+            const bikeImg = document.createElement('img');
+            bikeImg.src = 'bike.png';
+            bikeImg.alt = 'Enemy Bike';
+            bikeElement.appendChild(bikeImg);
+            
+            // Randomly tint the bike
+            const hueRotate = Math.random() * 360;
+            const brightness = 0.7 + Math.random() * 0.3;
+            bikeImg.style.filter = `hue-rotate(${hueRotate}deg) brightness(${brightness})`;
+
+            const width = 60;
+            const height = 100;
+            const xPos = Math.random() * (RIGHT_BOUNDARY - LEFT_BOUNDARY - width) + LEFT_BOUNDARY;
+            const yPos = -height - Math.random() * 50;
+            
+            bikeElement.style.left = xPos + 'px';
+            bikeElement.style.top = yPos + 'px';
+            const initialZ = getPerspectiveZ(yPos);
+            bikeElement.style.transform = `translateZ(${initialZ}px)`;
+            
+            roadElement.appendChild(bikeElement);
+            
+            otherBikes.push({
+                element: bikeElement, x: xPos, y: yPos, width, height,
+                groundSpeedRatio: 0.1 + Math.random() * 0.8, baseScale: 1,
+                isDanger: false, hueRotate, brightness
+            });
+        }
+        
+        function createCoin() {
+            const coinElement = document.createElement('div');
+            coinElement.className = 'coin';
+            
+            const size = 25;
+            const xPos = Math.random() * (RIGHT_BOUNDARY - LEFT_BOUNDARY - size) + LEFT_BOUNDARY;
+            const yPos = -size - Math.random() * 50;
+
+            coinElement.style.left = xPos + 'px';
+            coinElement.style.top = yPos + 'px';
+            const initialZ = getPerspectiveZ(yPos);
+            coinElement.style.transform = `translateZ(${initialZ}px) rotateY(0deg)`;
+            
+            roadElement.appendChild(coinElement);
+            coins.push({
+                element: coinElement, x: xPos, y: yPos, width: size, height: size,
+                collected: false, rotationY: 0, baseScale: 0.8
+            });
+        }
+        
+        function updatePlayerPosition() {
+            let horizontalSpeedFactor = playerSpeed / 150 + 0.5;
+            player.tiltAngle = 0;
+
+            if (keys['arrowleft'] || keys['a']) {
+                player.x -= player.moveSpeed * horizontalSpeedFactor;
+                player.tiltAngle = -15;
+            }
+            if (keys['arrowright'] || keys['d']) {
+                player.x += player.moveSpeed * horizontalSpeedFactor;
+                player.tiltAngle = 15;
+            }
+            
+            if (keys['arrowup'] || keys['w']) {
+                playerSpeed = Math.min(playerSpeed + acceleration, maxSpeed);
+            }
+            if (keys['arrowdown'] || keys['s']) {
+                playerSpeed = Math.max(playerSpeed - deceleration * 2, minSpeed);
+            }
+            
+            if (!(keys['arrowup'] || keys['w'])) {
+                playerSpeed = Math.max(playerSpeed - deceleration * 0.5, minSpeed);
+            }
+            
+            // Set engine idle volume based on speed
+            engineIdleSound.volume = 0.3 + (playerSpeed / maxSpeed) * 0.5;
+            
+            // Update speed display and needle
+            speedDisplay.innerHTML = Math.round(playerSpeed) + ' <span id="speed-unit">km/h</span>';
+            const needleRotation = -90 + (playerSpeed / maxSpeed) * 180;
+            speedNeedle.style.transform = `rotate(${needleRotation}deg)`;
+            
+            // Keep player in bounds
+            player.x = Math.max(LEFT_BOUNDARY, Math.min(player.x, RIGHT_BOUNDARY));
+            updatePlayerPositionDOM();
+        }
+
+        function updatePlayerPositionDOM() {
+            playerElement.style.left = player.x + 'px';
+            playerElement.style.transform = `translateX(-50%) translateZ(10px) rotateZ(${player.tiltAngle}deg)`;
+        }
+        
+        function addCollisionVisualization() {
+            // Create debug elements if not exists
+            if (!window.debugElements) {
+                window.debugElements = {
+                    playerHitbox: document.createElement('div'),
+                    bikeHitboxes: []
+                };
+                
+                // Style for player hitbox
+                window.debugElements.playerHitbox.style.position = 'absolute';
+                window.debugElements.playerHitbox.style.border = '2px solid green';
+                window.debugElements.playerHitbox.style.backgroundColor = 'rgba(0, 255, 0, 0.2)';
+                window.debugElements.playerHitbox.style.zIndex = '9999';
+                
+                roadElement.appendChild(window.debugElements.playerHitbox);
+            }
+            
+            // Update player hitbox
+            const playerVisualTopY = CONTAINER_HEIGHT - 100 - player.height;
+            window.debugElements.playerHitbox.style.width = (player.width * 0.8) + 'px';
+            window.debugElements.playerHitbox.style.height = (player.height * 0.8) + 'px';
+            window.debugElements.playerHitbox.style.left = (player.x + player.width * 0.1) + 'px';
+            window.debugElements.playerHitbox.style.top = (playerVisualTopY + player.height * 0.1) + 'px';
+            
+            // Remove old bike hitboxes
+            window.debugElements.bikeHitboxes.forEach(el => {
+                if (el.parentNode) el.parentNode.removeChild(el);
+            });
+            window.debugElements.bikeHitboxes = [];
+            
+            // Create new bike hitboxes
+            otherBikes.forEach(bike => {
+                const bikeHitbox = document.createElement('div');
+                bikeHitbox.style.position = 'absolute';
+                bikeHitbox.style.border = bike.isDanger ? '2px solid red' : '2px solid blue';
+                bikeHitbox.style.backgroundColor = bike.isDanger ? 'rgba(255, 0, 0, 0.2)' : 'rgba(0, 0, 255, 0.2)';
+                bikeHitbox.style.zIndex = '9999';
+                
+                const perspectiveScale = Math.min(1, Math.max(0.4, 1 - Math.abs(bike.y - playerVisualTopY) / 200));
+                const adjustedWidth = bike.width * perspectiveScale * 0.8;
+                const adjustedHeight = bike.height * perspectiveScale * 0.8;
+                
+                bikeHitbox.style.width = adjustedWidth + 'px';
+                bikeHitbox.style.height = adjustedHeight + 'px';
+                bikeHitbox.style.left = (bike.x + (bike.width - adjustedWidth) / 2) + 'px';
+                bikeHitbox.style.top = (bike.y + (bike.height - adjustedHeight) / 2) + 'px';
+                
+                roadElement.appendChild(bikeHitbox);
+                window.debugElements.bikeHitboxes.push(bikeHitbox);
+            });
+        }
+        
+        const gameLogicUpdateInterval = 16; // ~60 FPS
+        let lastLogicUpdateTime = 0;
+
+        function gameLoop(timestamp) {
+            if (!gameStarted || gamePaused) return;
+            
+            const deltaTime = timestamp - lastLogicUpdateTime;
+
+            updatePlayerPosition();
+            
+            const roadScrollSpeed = playerSpeed / 20;
+
+            if (playerSpeed > 0) {
+                roadLineTimer += roadScrollSpeed;
+                if (roadLineTimer >= roadLineSpawnInterval) {
+                    createRoadLine();
+                    roadLineTimer = 0;
+                    
+                    const speedScore = Math.floor(playerSpeed / 50);
+                    if (speedScore > 0) {
+                        score += speedScore;
+                        scoreDisplay.textContent = `Score: ${score}`;
+                    }
+                }
+                
+                // Update road lines
+                for (let i = roadLines.length - 1; i >= 0; i--) {
+                    const line = roadLines[i];
+                    line.y += roadScrollSpeed;
+                    line.element.style.top = line.y + 'px';
+                    const currentZ = getPerspectiveZ(line.y);
+                    line.element.style.transform = `translateX(-50%) translateZ(${currentZ}px) scale(${line.baseScale})`;
+                    
+                    if (line.y > CONTAINER_HEIGHT + 50) {
+                        roadElement.removeChild(line.element);
+                        roadLines.splice(i, 1);
+                    }
+                }
+                
+                // Generate and update other bikes
+                if (Math.random() < 0.015 * (playerSpeed / 50) && otherBikes.length < 6) {
+                    createOtherBike();
+                }
+                for (let i = otherBikes.length - 1; i >= 0; i--) {
+                    const bike = otherBikes[i];
+                    let bikeGroundSpeed = playerSpeed * bike.groundSpeedRatio;
+                    let movementRate = (playerSpeed - bikeGroundSpeed) / 20;
+                    movementRate = playerSpeed > 0 ? Math.max(0.1, movementRate) : 0;
+
+                    bike.y += movementRate;
+                    bike.element.style.top = bike.y + 'px';
+                    const currentZ = getPerspectiveZ(bike.y);
+                    bike.element.style.transform = `translateZ(${currentZ}px) scale(${bike.baseScale})`;
+                    
+                    // Improved collision detection
+                    const playerVisualTopY = CONTAINER_HEIGHT - 100 - player.height;
+                    const playerVisualBottomY = CONTAINER_HEIGHT - 100;
+                    
+                    // Get perspective-adjusted collision bounds
+                    const perspectiveScale = Math.min(1, Math.max(0.4, 1 - Math.abs(bike.y - playerVisualTopY) / 200));
+                    const adjustedPlayerWidth = player.width * perspectiveScale * 0.8;
+                    const adjustedBikeWidth = bike.width * perspectiveScale * 0.8;
+                    
+                    // Calculate horizontal distance between bike centers
+                    const horizDistance = Math.abs((bike.x + bike.width/2) - (player.x + player.width/2));
+                    
+                    // Z-axis proximity (closer = more accurate collision needed)
+                    const zProximity = Math.abs(getPerspectiveZ(bike.y) - getPerspectiveZ(playerVisualTopY)) / Math.abs(FOREGROUND_Z - HORIZON_Z);
+                    const collisionThreshold = (adjustedPlayerWidth/2 + adjustedBikeWidth/2) * (1 - zProximity * 0.3);
+                    
+                    // Danger zone considers speed for earlier warnings at higher speeds
+                    const speedFactor = 1 + (playerSpeed / maxSpeed) * 0.5;
+                    const isInDangerZone = 
+                        bike.y + bike.height > playerVisualTopY - 120 * speedFactor && 
+                        bike.y < playerVisualBottomY + 20 &&
+                        horizDistance < collisionThreshold * 1.5;
+                    
+                    // Add danger visual effect with intensity based on proximity
+                    if (isInDangerZone) {
+                        if (!bike.isDanger) {
+                            bike.element.classList.add('danger');
+                            bike.isDanger = true;
+                        }
+                        
+                        // The closer we are to collision, the more intense the effect
+                        const dangerIntensity = Math.min(1, (collisionThreshold * 1.5 - horizDistance) / (collisionThreshold * 0.5));
+                        bike.element.querySelector('img').style.filter = `hue-rotate(${bike.hueRotate}deg) brightness(${bike.brightness}) drop-shadow(0 0 ${20 * dangerIntensity}px rgba(231, 76, 60, ${dangerIntensity}))`;
+                    } else if (bike.isDanger) {
+                        bike.element.classList.remove('danger');
+                        bike.element.querySelector('img').style.filter = `hue-rotate(${bike.hueRotate}deg) brightness(${bike.brightness})`;
+                        bike.isDanger = false;
+                    }
+                    
+                    // Actual collision detection with improved accuracy
+                    const verticalCollision = 
+                        bike.y + bike.height * 0.7 > playerVisualTopY && 
+                        bike.y + bike.height * 0.3 < playerVisualBottomY;
+                    
+                    if (verticalCollision && horizDistance < collisionThreshold) {
+                        gameOver(); return;
+                    }
+
+                    if (bike.y > CONTAINER_HEIGHT + bike.height) {
+                        roadElement.removeChild(bike.element); otherBikes.splice(i, 1);
+                    }
+                }
+                
+                // Generate and update coins
+                if (Math.random() < 0.01 * (playerSpeed / 50) && coins.length < 8) {
+                    createCoin();
+                }
+                for (let i = coins.length - 1; i >= 0; i--) {
+                    const coin = coins[i];
+                    coin.y += roadScrollSpeed;
+                    coin.rotationY = (coin.rotationY + 5 * (playerSpeed / 50 + 0.5)) % 360;
+                    coin.element.style.top = coin.y + 'px';
+                    const currentZ = getPerspectiveZ(coin.y);
+                    coin.element.style.transform = `translateZ(${currentZ}px) rotateY(${coin.rotationY}deg) scale(${coin.baseScale})`;
+                    
+                    const playerVisualTopY = CONTAINER_HEIGHT - 100 - player.height;
+                    const playerVisualBottomY = CONTAINER_HEIGHT - 100;
+
+                    if (!coin.collected &&
+                        coin.y + coin.height > playerVisualTopY && coin.y < playerVisualBottomY &&
+                        Math.abs((coin.x + coin.width/2) - (player.x + player.width/2)) < (player.width/2 + coin.width/2)
+                    ) {
+                        coin.collected = true;
+                        score += 10;
+                        scoreDisplay.textContent = `Score: ${score}`;
+                        
+                        // Add collection animation
+                        coin.element.classList.add('collected');
+                        
+                        // Play coin sound
+                        playCoinSound();
+                        
+                        // Show coin notification randomly
+                        if (Math.random() < 0.3) {
+                            const messages = [
+                                "+10 points! Keep going!",
+                                "Coin collected! Nice!",
+                                "Ka-ching! +10 points!"
+                            ];
+                            const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+                            showNotification(randomMsg, 1500);
+                        }
+                        
+                        setTimeout(() => {
+                            if (coin.element.parentNode) {
+                                roadElement.removeChild(coin.element);
+                                coins.splice(i, 1);
+                            }
+                        }, 500);
+                        continue;
+                    }
+                    if (coin.y > CONTAINER_HEIGHT + coin.height) {
+                        roadElement.removeChild(coin.element); coins.splice(i, 1);
+                    }
+                }
+                
+                // Optional: Uncomment to debug collision hitboxes
+                // if (window.debug) addCollisionVisualization();
+            } else {
+                roadLineTimer = 0;
+            }
+            
+            lastLogicUpdateTime = timestamp;
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Initialize high score display
+        highScoreDisplay.textContent = `Best: ${highScore}`;
+        
+        // Ensure images are preloaded
+        const bikeImage = new Image();
+        bikeImage.src = 'bike.png';
+        const logoImage = new Image();
+        logoImage.src = 'logo.png';
+        
+        // Initialize music toggle based on saved preference
+        const savedMusicPref = localStorage.getItem('musicOn');
+        if (savedMusicPref !== null) {
+            musicOn = savedMusicPref === 'true';
+            musicToggle.innerHTML = musicOn ? 
+                '<i class="fas fa-volume-up"></i>' : 
+                '<i class="fas fa-volume-mute"></i>';
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            const newWidth = gameContainer.offsetWidth;
+            const newHeight = gameContainer.offsetHeight;
+            
+            if (newWidth !== CONTAINER_WIDTH || newHeight !== CONTAINER_HEIGHT) {
+                // Reload the page to reinitialize game dimensions
+                location.reload();
+            }
+        });
+        
+        // Debug mode toggle (uncomment to enable)
+        // window.addEventListener('keydown', function(e) {
+        //    if (e.key.toLowerCase() === 'd' && e.ctrlKey) {
+        //        window.debug = !window.debug;
+        //        showNotification(window.debug ? 'Debug mode enabled' : 'Debug mode disabled', 1500);
+        //    }
+        // });
+    </script>
+</body>
+</html>
